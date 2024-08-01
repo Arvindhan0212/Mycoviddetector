@@ -2,15 +2,18 @@ from flask import Flask, render_template, request
 import pandas as pd
 import pickle
 import numpy as np
+import xgboost
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
-from sklearn.cluster import DBSCAN
+from sklearn.metrics import pairwise_distances_argmin_min
+
 app = Flask(__name__)
 
 def predict_covid_status(user_input_array, model='ensemble'):
     data_file = 'static/data/Covid_Detector.csv'
     data = pd.read_csv(data_file)
     
+    # Encode categorical features
     le = LabelEncoder()
     for column in data.columns:
         if data[column].dtype == 'object':  # Only encode object types
@@ -19,19 +22,65 @@ def predict_covid_status(user_input_array, model='ensemble'):
     X = data.drop(columns='COVID-19')
     y = data['COVID-19']
     
+    # Preprocess data
     imputer = SimpleImputer(strategy='mean')
     X_imputed = imputer.fit_transform(X)
     
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X_imputed)
     
-    if model == 'ensemble':
-        with open('ensemble_model.pkl', 'rb') as file:
-            loaded_model = pickle.load(file)
-        predictions = loaded_model.predict(pd.DataFrame(user_input_array, columns=X.columns))
-        results = ["You may be at risk for COVID-19, please contact a medical professional." if pred == 1 else "You do not display any symptoms of COVID-19." for pred in predictions]
-        positive = [pred == 1 for pred in predictions]
+    results = []
+    positive = []
     
+    try:
+        if model == 'ensemble':
+            # Load and use ensemble model
+            with open('ensemble_model.pkl', 'rb') as file:
+                loaded_model = pickle.load(file)
+            predictions = loaded_model.predict(pd.DataFrame(user_input_array, columns=X.columns))
+            results = ["You may be at risk for COVID-19, please contact a medical professional." if pred == 1 else "You do not display any symptoms of COVID-19." for pred in predictions]
+            positive = [pred == 1 for pred in predictions]
+
+        elif model == 'dbscan':
+            # Load and use DBSCAN model
+            with open('dbscan2.pkl', 'rb') as file:
+                data = pickle.load(file)
+                dbscan = data['dbscan']
+                scaler = data['scaler']
+                imputer = data['imputer']
+                cluster_labels = data['cluster_labels']
+            
+            # Process user input
+            input_df = pd.DataFrame(user_input_array, columns=X.columns)
+            input_imputed = imputer.transform(input_df)
+            input_scaled = scaler.transform(input_imputed)
+
+            def find_closest_cluster(input_scaled, X_scaled, clusters):
+                closest_cluster_idx, _ = pairwise_distances_argmin_min(input_scaled, X_scaled)
+                return clusters[closest_cluster_idx[0]]
+
+            # Predict clusters for user input
+            results = []
+            positive = []
+            user_clusters = []
+            for input_row in input_scaled:
+                user_cluster = find_closest_cluster([input_row], X_scaled, np.unique(dbscan.labels_))
+                user_clusters.append(user_cluster)
+            
+            for user_cluster in user_clusters:
+                user_prediction = cluster_labels.get(user_cluster, -1) if user_cluster != -1 else -1
+                if user_prediction == 1:
+                    results.append("You may be at risk for COVID-19, please contact a medical professional.")
+                    positive.append(True)
+                else:
+                    results.append("You do not display any symptoms of COVID-19.")
+                    positive.append(False)
+    
+    except Exception as e:
+        results.append("An error occurred during prediction.")
+        positive.append(False)
+        print(f"Error: {e}")
+
     return results, positive
 
 @app.route('/')
