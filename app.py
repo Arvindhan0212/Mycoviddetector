@@ -2,7 +2,6 @@ from flask import Flask, render_template, request
 import pandas as pd
 import pickle
 import numpy as np
-import xgboost
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import pairwise_distances_argmin_min
@@ -11,8 +10,13 @@ app = Flask(__name__)
 
 def predict_covid_status(user_input_array, model='ensemble'):
     data_file = 'static/data/Covid_Detector.csv'
-    data = pd.read_csv(data_file)
     
+    try:
+        data = pd.read_csv(data_file)
+    except Exception as e:
+        print(f"Error loading data file: {e}")
+        return ["An error occurred during prediction."], [False]
+
     # Encode categorical features
     le = LabelEncoder()
     for column in data.columns:
@@ -60,8 +64,6 @@ def predict_covid_status(user_input_array, model='ensemble'):
                 return clusters[closest_cluster_idx[0]]
 
             # Predict clusters for user input
-            results = []
-            positive = []
             user_clusters = []
             for input_row in input_scaled:
                 user_cluster = find_closest_cluster([input_row], X_scaled, np.unique(dbscan.labels_))
@@ -75,11 +77,11 @@ def predict_covid_status(user_input_array, model='ensemble'):
                 else:
                     results.append("You do not display any symptoms of COVID-19.")
                     positive.append(False)
-    
+        
     except Exception as e:
+        print(f"Error during prediction: {e}")
         results.append("An error occurred during prediction.")
         positive.append(False)
-        print(f"Error: {e}")
 
     return results, positive
 
@@ -105,8 +107,12 @@ def predict():
         model_choice = user_input.pop('model')
         user_input = {key: int(value) for key, value in user_input.items()}
         user_input_array = [user_input]
-        results, positive = predict_covid_status(user_input_array, model=model_choice)
-        return render_template('result.html', prediction=results[0], positive=positive[0])
+        try:
+            results, positive = predict_covid_status(user_input_array, model=model_choice)
+            return render_template('result.html', prediction=results[0], positive=positive[0])
+        except Exception as e:
+            print(f"Error in /predict route: {e}")
+            return render_template('result.html', prediction="An error occurred during prediction.", positive=False)
 
 if __name__ == '__main__':
     app.run(debug=True)
