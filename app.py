@@ -9,7 +9,7 @@ from sklearn.metrics import pairwise_distances_argmin_min
 app = Flask(__name__)
 
 def predict_covid_status(user_input_array, model='ensemble'):
-    data_file = '/Users/arvindhan/Downloads/archive-2/Covid_Detector.csv'
+    data_file = 'static/Covid_Detector.csv'
     data = pd.read_csv(data_file)
     le = LabelEncoder()
     for column in data.columns:
@@ -75,7 +75,7 @@ def predict_covid_status(user_input_array, model='ensemble'):
 
 @app.route('/')
 def index():
-    file_path = "/Users/arvindhan/Downloads/archive-2/Covid_Detector.csv"
+    file_path = "static/Covid_Detector.csv"
     data = pd.read_csv(file_path)
     columns = data.drop(columns='COVID-19').columns.tolist()
     return render_template('index.html', columns=columns)
