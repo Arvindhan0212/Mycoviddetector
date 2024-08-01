@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizations - MyCovidDetector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0%;
+            padding-left: 2.2%;
+            background-color: #f4f4f9;
+            min-height: 100vh;
+            position: relative;
+            padding-bottom: 100px; /* Footer height */
+            overflow-x: hidden;
+        }
+
+        nav {
+            padding-left: 5px;
+            width: 100%;
+            background-color: #007bff;
+            padding: 1em 2em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        nav .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+
+        nav ul li {
+            margin-left: 1em;
+        }
+
+        nav ul li a {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5em 1em;
+        }
+
+        nav ul li a:hover {
+            background-color: #0056b3;
+            border-radius: 5px;
+        }
+        header {
+            text-align: center;
+            padding: 50px 20px;
+            background-color: #333;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        header p {
+            font-size: 1.2em;
+            margin: 10px 0 0;
+        }
+
+        section.visualizations {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .visualization {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s;
+            width: 300px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .visualization img {
+            width: 100%;
+            height: auto;
+        }
+
+        .visualization h2 {
+            margin: 10px 0;
+            font-size: 1.5em;
+            color: #333;
+        }
+
+        .visualization:hover {
+            transform: scale(1.05);
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            background-color: #333;
+            color: white;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            margin: 15% auto;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 700px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .modal img {
+            width: 100%;
+            height: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="logo">MyCovidDetector</div>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('about') }}">About</a></li>
+            <li><a href="{{ url_for('visualizations') }}">Visualizations</a></li>
+        </ul>
+    </nav>
+
+    <section class="visualizations">
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/breathing problem.png') }}')">
+            <img src="{{ url_for('static', filename='images/breathing problem.png') }}" alt="Breathing Problem Visualization">
+            <h2>Breathing Problem</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/covid yes vs no.png') }}')">
+            <img src="{{ url_for('static', filename='images/covid yes vs no.png') }}" alt="Covid Yes vs No Visualization">
+            <h2>Covid Yes vs No</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/dbscan.png') }}')">
+            <img src="{{ url_for('static', filename='images/dbscan.png') }}" alt="DBSCAN Visualization">
+            <h2>DBSCAN Clustering</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/dry cough.png') }}')">
+            <img src="{{ url_for('static', filename='images/dry cough.png') }}" alt="Dry Cough Visualization">
+            <h2>Dry Cough</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/ensemble.png') }}')">
+            <img src="{{ url_for('static', filename='images/ensemble.png') }}" alt="Ensemble Visualization">
+            <h2>Ensemble Model</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/fever.png') }}')">
+            <img src="{{ url_for('static', filename='images/fever.png') }}" alt="Fever Visualization">
+            <h2>Fever</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/heatmap of all diseases.png') }}')">
+            <img src="{{ url_for('static', filename='images/heatmap of all diseases.png') }}" alt="Heatmap of All Diseases">
+            <h2>Heatmap of All Diseases</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/olls.png') }}')">
+            <img src="{{ url_for('static', filename='images/olls.png') }}" alt="OLLS Visualization">
+            <h2>OLLS</h2>
+        </div>
+        <div class="visualization" onclick="openModal('{{ url_for('static', filename='images/rocknn.png') }}')">
+            <img src="{{ url_for('static', filename='images/rocknn.png') }}" alt="ROCKNN Visualization">
+            <h2>ROCKNN</h2>
+        </div>
+        
+    </section>
+
+    
+
+    <!-- Modal -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <img id="modalImage" src="" alt="Visualization">
+        </div>
+    </div>
+
+    <script>
+        function openModal(imageSrc) {
+            document.getElementById('modalImage').src = imageSrc;
+            document.getElementById('myModal').style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById('myModal').style.display = "none";
+        }
+
+        function scrollToForm() {
+            document.getElementById('input-section').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

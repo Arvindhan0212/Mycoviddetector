@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About MyCovidDetector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav>
+        <div class="logo">MyCovidDetector</div>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('visualizations') }}">Visualizations</a></li>
+            <li><a href="{{ url_for('about') }}">About</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>About MyCovidDetector</h1>
+        <p>This website helps in predicting the risk of having COVID-19 based on your symptoms and other factors. It utilizes two models:</p>
+        <ul>
+            <li><strong>Ensemble Model:</strong> A combination of multiple machine learning algorithms to improve the prediction accuracy. By aggregating the strengths of different models, the ensemble approach provides more reliable predictions.</li>
+            <li><strong>DBSCAN Clustering:</strong> A density-based clustering algorithm that groups similar data points and identifies outliers to predict the risk. This method is particularly useful for finding patterns in complex datasets and recognizing atypical cases.</li>
+        </ul>
+        <p>By leveraging these advanced techniques, MyCovidDetector aims to offer a useful tool for assessing COVID-19 risk, helping individuals make informed decisions about their health.</p>
+    </div>
+</body>
+</html>
