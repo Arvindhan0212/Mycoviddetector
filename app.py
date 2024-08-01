@@ -2,7 +2,7 @@ from flask import Flask, render_template, request
 import pandas as pd
 import pickle
 import numpy as np
-import xgboost as xgb  # Import XGBoost
+import xgboost as xgb
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import pairwise_distances_argmin_min
@@ -29,20 +29,54 @@ def predict_covid_status(user_input_array, model='ensemble'):
     
     results = []
     positive = []
-    
-    try:
-        if model == 'ensemble':
-            # Load and use ensemble model
+
+    if model == 'ensemble':
+        try:
             with open('ensemble_model.pkl', 'rb') as file:
                 loaded_model = pickle.load(file)
+            # Check and handle XGBoost model compatibility
+            if isinstance(loaded_model, xgb.XGBClassifier):
+                loaded_model._Booster.set_attr(use_label_encoder='false')  # Avoid deprecation issue
             predictions = loaded_model.predict(pd.DataFrame(user_input_array, columns=X.columns))
             results = ["You may be at risk for COVID-19, please contact a medical professional." if pred == 1 else "You do not display any symptoms of COVID-19." for pred in predictions]
             positive = [pred == 1 for pred in predictions]
+        except Exception as e:
+            print(f"Error during ensemble prediction: {e}")
+            results.append("An error occurred during prediction.")
+            positive.append(False)
 
-    except Exception as e:
-        print(f"Error during prediction: {e}")
-        results.append("An error occurred during prediction.")
-        positive.append(False)
+    elif model == 'dbscan':
+        try:
+            with open('dbscan2.pkl', 'rb') as file:
+                data = pickle.load(file)
+                dbscan = data['dbscan']
+                scaler = data['scaler']
+                imputer = data['imputer']
+                cluster_labels = data['cluster_labels']
+            
+            input_df = pd.DataFrame(user_input_array, columns=X.columns)
+            input_imputed = imputer.transform(input_df)
+            input_scaled = scaler.transform(input_imputed)
+            
+            def find_closest_cluster(input_scaled, X_scaled, clusters):
+                closest_cluster_idx, _ = pairwise_distances_argmin_min(input_scaled, X_scaled)
+                return clusters[closest_cluster_idx[0]]
+
+            results = []
+            positive = []
+            for input_row in input_scaled:
+                user_cluster = find_closest_cluster([input_row], X_scaled, np.unique(dbscan.labels_))
+                user_prediction = cluster_labels.get(user_cluster, -1) if user_cluster != -1 else -1
+                if user_prediction == 1:
+                    results.append("You may be at risk for COVID-19, please contact a medical professional.")
+                    positive.append(True)
+                else:
+                    results.append("You do not display any symptoms of COVID-19.")
+                    positive.append(False)
+        except Exception as e:
+            print(f"Error during DBSCAN prediction: {e}")
+            results.append("An error occurred during prediction.")
+            positive.append(False)
 
     return results, positive
 
