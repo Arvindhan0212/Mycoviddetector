@@ -1,8 +1,7 @@
-from flask import Flask, render_template, request
+from flask import Flask, request, render_template, url_for
 import pandas as pd
 import pickle
 import numpy as np
-import xgboost as xgb
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import pairwise_distances_argmin_min
@@ -12,71 +11,65 @@ app = Flask(__name__)
 def predict_covid_status(user_input_array, model='ensemble'):
     data_file = 'static/data/Covid_Detector.csv'
     data = pd.read_csv(data_file)
-    
     le = LabelEncoder()
     for column in data.columns:
-        if data[column].dtype == 'object':  # Only encode object types
-            data[column] = le.fit_transform(data[column])
-    
+        data[column] = le.fit_transform(data[column])
+
     X = data.drop(columns='COVID-19')
     y = data['COVID-19']
-    
+
     imputer = SimpleImputer(strategy='mean')
     X_imputed = imputer.fit_transform(X)
-    
+
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X_imputed)
-    
-    results = []
-    positive = []
 
     if model == 'ensemble':
-        try:
-            with open('ensemble_model.pkl', 'rb') as file:
-                loaded_model = pickle.load(file)
-            # Check and handle XGBoost model compatibility
-            if isinstance(loaded_model, xgb.XGBClassifier):
-                loaded_model._Booster.set_attr(use_label_encoder='false')  # Avoid deprecation issue
-            predictions = loaded_model.predict(pd.DataFrame(user_input_array, columns=X.columns))
-            results = ["You may be at risk for COVID-19, please contact a medical professional." if pred == 1 else "You do not display any symptoms of COVID-19." for pred in predictions]
-            positive = [pred == 1 for pred in predictions]
-        except Exception as e:
-            print(f"Error during ensemble prediction: {e}")
-            results.append("An error occurred during prediction.")
-            positive.append(False)
-
+        with open('ensemble_model.pkl', 'rb') as file:
+            loaded_model = pickle.load(file)
+        predictions = loaded_model.predict(pd.DataFrame(user_input_array, columns=X.columns))
+        results = ["You may be at risk for COVID-19, please contact a medical professional." if pred == 1 else "You do not display any symptoms of COVID-19." for pred in predictions]
+        positive = [pred == 1 for pred in predictions]
     elif model == 'dbscan':
-        try:
-            with open('dbscan2.pkl', 'rb') as file:
-                data = pickle.load(file)
-                dbscan = data['dbscan']
-                scaler = data['scaler']
-                imputer = data['imputer']
-                cluster_labels = data['cluster_labels']
-            
-            input_df = pd.DataFrame(user_input_array, columns=X.columns)
-            input_imputed = imputer.transform(input_df)
-            input_scaled = scaler.transform(input_imputed)
-            
-            def find_closest_cluster(input_scaled, X_scaled, clusters):
-                closest_cluster_idx, _ = pairwise_distances_argmin_min(input_scaled, X_scaled)
-                return clusters[closest_cluster_idx[0]]
+        with open('dbscan.pkl', 'rb') as file:
+            loaded_ensemble = pickle.load(file)
 
-            results = []
-            positive = []
-            for input_row in input_scaled:
-                user_cluster = find_closest_cluster([input_row], X_scaled, np.unique(dbscan.labels_))
-                user_prediction = cluster_labels.get(user_cluster, -1) if user_cluster != -1 else -1
-                if user_prediction == 1:
-                    results.append("You may be at risk for COVID-19, please contact a medical professional.")
-                    positive.append(True)
-                else:
-                    results.append("You do not display any symptoms of COVID-19.")
-                    positive.append(False)
-        except Exception as e:
-            print(f"Error during DBSCAN prediction: {e}")
-            results.append("An error occurred during prediction.")
-            positive.append(False)
+        dbscan_positive = loaded_ensemble['dbscan_positive']
+        dbscan_negative = loaded_ensemble['dbscan_negative']
+        clusters_positive = loaded_ensemble['clusters_positive']
+        clusters_negative = loaded_ensemble['clusters_negative']
+        positive_cluster_labels = loaded_ensemble['positive_cluster_labels']
+        negative_cluster_labels = loaded_ensemble['negative_cluster_labels']
+
+        input_df = pd.DataFrame(user_input_array, columns=X.columns)
+        input_imputed = imputer.transform(input_df)
+        input_scaled = scaler.transform(input_imputed)
+
+        def find_closest_cluster(input_scaled, X_scaled, clusters):
+            closest_cluster_idx, _ = pairwise_distances_argmin_min(input_scaled, X_scaled)
+            return clusters[closest_cluster_idx[0]]
+
+        def get_cluster_label(clusters, y):
+            cluster_labels = {}
+            for cluster in np.unique(clusters):
+                if cluster != -1:
+                    cluster_labels[cluster] = y[clusters == cluster].mode()[0]
+            return cluster_labels
+
+        def predict_class(cluster, cluster_labels):
+            return cluster_labels.get(cluster, -1)
+
+        results = []
+        positive = []
+        for input_row in input_scaled:
+            user_cluster = find_closest_cluster([input_row], X_scaled, np.concatenate([clusters_positive, clusters_negative]))
+            user_prediction = predict_class(user_cluster, {**positive_cluster_labels, **negative_cluster_labels})
+            if user_prediction == 1:
+                results.append("You may be at risk for COVID-19, please contact a medical professional.")
+                positive.append(True)
+            else:
+                results.append("You do not display any symptoms of COVID-19.")
+                positive.append(False)
 
     return results, positive
 
@@ -106,4 +99,6 @@ def predict():
         return render_template('result.html', prediction=results[0], positive=positive[0])
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
